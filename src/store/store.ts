@@ -84,10 +84,11 @@ async function rebuild(template: string, model: string, dataString: string): Pro
   // This fails fast on invalid JSON or CTO syntax without running network calls
   await validateBeforeRebuild(template, model, dataString);
   
-  const modelManager = new ModelManager({ strict: true });
+  const modelManager = new ModelManager();
   modelManager.addCTOModel(model, undefined, true);
   await modelManager.updateExternalModels();
-  const engine = new TemplateMarkInterpreter(modelManager, {});
+  // template-engine still publishes v3 Concerto typings; runtime shape is compatible here.
+  const engine = new TemplateMarkInterpreter(modelManager as unknown as never, {});
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
   const templateMarkTransformer = new TemplateMarkTransformer();
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
