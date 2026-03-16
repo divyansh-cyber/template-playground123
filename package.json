@@ -101,6 +101,11 @@
     "vite-plugin-node-stdlib-browser": "^0.2.1",
     "vitest": "^1.6.0"
   },
+  "overrides": {
+    "@accordproject/concerto-core@3.24.0": {
+      "@accordproject/concerto-metamodel": "3.12.6"
+    }
+  },
   "browserslist": [
     ">0.2%",
     "not dead",
