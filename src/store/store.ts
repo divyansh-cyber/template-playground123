@@ -79,6 +79,27 @@ export interface DecompressedData {
 
 const rebuildDeBounce = debounce(rebuild, 500);
 
+const EXTERNAL_MODEL_RESOLUTION_TIMEOUT_MS = 10000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
+function hasExternalImports(model: string): boolean {
+  return /^\s*import\s+/m.test(model);
+}
+
 async function rebuild(template: string, model: string, dataString: string): Promise<string> {
   // Validate inputs before expensive operations
   // This fails fast on invalid JSON or CTO syntax without running network calls
@@ -86,8 +107,15 @@ async function rebuild(template: string, model: string, dataString: string): Pro
   
   const modelManager = new ModelManager({ strict: true });
   modelManager.addCTOModel(model, undefined, true);
-  await modelManager.updateExternalModels();
-  const engine = new TemplateMarkInterpreter(modelManager, {});
+  if (hasExternalImports(model)) {
+    await withTimeout(
+      modelManager.updateExternalModels(),
+      EXTERNAL_MODEL_RESOLUTION_TIMEOUT_MS,
+      `External model resolution timed out after ${EXTERNAL_MODEL_RESOLUTION_TIMEOUT_MS}ms. Check connectivity or remove remote imports.`
+    );
+  }
+  // template-engine currently resolves concerto-core v3 types; cast to bridge v4 app types at this boundary.
+  const engine = new TemplateMarkInterpreter(modelManager as unknown as never, {});
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
   const templateMarkTransformer = new TemplateMarkTransformer();
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call

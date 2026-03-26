@@ -14,6 +14,21 @@ const LearnNow = lazy(() => import("./pages/LearnNow"));
 const MainContainer = lazy(() => import("./pages/MainContainer"));
 
 const { Content } = Layout;
+const APP_INIT_TIMEOUT_MS = 12000;
+
+const withTimeout = async (promise: Promise<void>, ms: number, message: string): Promise<void> => {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<void>((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error(message)), ms);
+  });
+  try {
+    await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+};
 
 const App = () => {
   const navigate = useNavigate();
@@ -42,12 +57,20 @@ const App = () => {
           compressedData = searchParams.get("data");
         }
         if (compressedData) {
-          await loadFromLink(compressedData);
+          await withTimeout(
+            loadFromLink(compressedData),
+            APP_INIT_TIMEOUT_MS,
+            `Initialization timed out after ${APP_INIT_TIMEOUT_MS}ms while loading shared data.`
+          );
           if (window.location.pathname !== "/") {
             navigate("/", { replace: true });
           }
         } else {
-          await init();
+          await withTimeout(
+            init(),
+            APP_INIT_TIMEOUT_MS,
+            `Initialization timed out after ${APP_INIT_TIMEOUT_MS}ms.`
+          );
         }
       } catch (error) {
         console.error("Initialization error:", error);
